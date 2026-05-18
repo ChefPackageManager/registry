@@ -18,5 +18,5 @@ fi
     --enable-optimizations \
     --prefix="$path"
 
-make -s -j $nproc
+make -j$nproc
 make install
