@@ -1,0 +1,12 @@
+black==26.5.1
+certifi==2026.5.20
+charset-normalizer==3.4.7
+click==8.4.1
+idna==3.16
+mypy_extensions==1.1.0
+packaging==26.2
+pathspec==1.1.1
+platformdirs==4.9.6
+pytokens==0.4.1
+requests==2.34.2
+urllib3==2.7.0
