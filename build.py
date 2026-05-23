@@ -148,7 +148,7 @@ def build(package: Package, unpacked: Path) -> Path:
     sh(["chmod", "+x", str(package.script.build)], cwd=CHEF_HOME)
     sh([str(package.script.build)], cwd=unpacked, env=env)
 
-    return CHEF_HOME / "bin" / package.name
+    return CHEF_HOME / "installed" / package.name
 
 
 def pack(source: Path, destination: Path) -> None:
