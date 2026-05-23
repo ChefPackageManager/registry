@@ -14,7 +14,6 @@ from typing import List, AnyStr
 
 import requests
 
-CHEF_BUILD_PREFIX = Path.home() / ".chef-build"
 CHEF_HOME = Path.home() / ".chef-package-manager"
 
 
@@ -76,15 +75,7 @@ def create_arg_parser() -> ArgumentParser:
     return parser
 
 
-def sh(
-        args: List[str],
-        cwd: Path,
-        environment: dict[AnyStr, AnyStr] | os._Environ[AnyStr] = os.environ,
-) -> None:
-    env = environment.copy()
-    env["CHEF_HOME"] = str(CHEF_BUILD_PREFIX)
-    env["OS"] = "LINUX" if platform.system() == "Linux" else "MACOS"
-
+def sh(args: List[str], cwd: Path, env: dict[AnyStr, AnyStr] | None = None) -> None:
     subprocess.run(
         args,
         cwd=str(cwd),
@@ -95,16 +86,16 @@ def sh(
 
 
 def bootstrap() -> None:
-    if not CHEF_BUILD_PREFIX.exists():
-        CHEF_BUILD_PREFIX.mkdir()
+    if not CHEF_HOME.exists():
+        CHEF_HOME.mkdir()
 
-    for subpath in ["tmp", "bin", "dist"]:
-        if not (CHEF_BUILD_PREFIX / subpath).exists():
-            (CHEF_BUILD_PREFIX / subpath).mkdir()
+    for subpath in ["tmp", "installed", "dist"]:
+        if not (CHEF_HOME / subpath).exists():
+            (CHEF_HOME / subpath).mkdir()
 
 
 def cleanup() -> None:
-    shutil.rmtree(str(CHEF_BUILD_PREFIX))
+    shutil.rmtree(str(CHEF_HOME))
 
 
 def verify(path: Path, checksum: str) -> bool:
@@ -125,7 +116,7 @@ def download(package: Package) -> Path:
         raise e
 
     filename = package.url.split("/")[-1]
-    path = CHEF_BUILD_PREFIX / "tmp" / filename
+    path = CHEF_HOME / "tmp" / filename
 
     with open(str(path), "wb") as f:
         f.write(r.content)
@@ -150,20 +141,23 @@ def unpack(path: Path) -> Path:
 def build(package: Package, unpacked: Path) -> Path:
     env = os.environ.copy()
     env["PACKAGE_NAME"] = package.name
+    env["CHEF_HOME"] = str(CHEF_HOME)
+    env["OS"] = "LINUX" if platform.system() == "Linux" else "MACOS"
 
-    # yes, I know I can do this with pure Python, but this solution is less complicated.
-    sh(["chmod", "+x", str(package.script.build)], cwd=CHEF_BUILD_PREFIX)
-    sh([str(package.script.build)], cwd=unpacked, environment=env)
+    # yes, I know I can use chmod with pure Python, but this solution is less complicated.
+    sh(["chmod", "+x", str(package.script.build)], cwd=CHEF_HOME)
+    sh([str(package.script.build)], cwd=unpacked, env=env)
 
-    return CHEF_BUILD_PREFIX / "bin" / package.name
+    return CHEF_HOME / "bin" / package.name
 
 
 def pack(source: Path, destination: Path) -> None:
-    # creating tar files in Python is unnecessarily complicated.
-    sh(["tar", "-czf", str(destination), str(source)], cwd=CHEF_BUILD_PREFIX)
+    # creating tar files in pure Python is unnecessarily complicated.
+    sh(["tar", "-czf", str(destination), str(source)], cwd=CHEF_HOME)
+
 
 def main() -> None:
-    if CHEF_BUILD_PREFIX.exists():
+    if CHEF_HOME.exists():
         cleanup()
     bootstrap()
 
@@ -181,7 +175,7 @@ def main() -> None:
         print(f"==> Building '{package.name}'")
         built = build(package, unpacked)
         print(f"==> Packing '{package.name}'")
-        pack(built, CHEF_BUILD_PREFIX / "dist" / f"{package.name}-{package.version}.tgz")
+        pack(built, CHEF_HOME / "dist" / f"{package.name}-{package.version}.tgz")
         print(f"==> Finished building '{package.name}'")
 
 
